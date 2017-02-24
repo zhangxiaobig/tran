@@ -187,7 +187,6 @@ class TEfeatures :
                 self._nameIDmap.append(full_name)   
                 
                 self.__namelist[chrom][name_idx] = [(start,end)]          
-                #print self.__namelist[chrom].keys()
                 
                 if chrom == cur_chrom:
                     if (name_idx-chr_name_idx)%500 == 0 :                        
