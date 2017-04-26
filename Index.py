@@ -73,11 +73,11 @@ class TEfeatures :
                             break   
                 except KeyError :
                     pass
-					
+                    
                 break
         if len(TEnamelist)>0:
             readMappability.append(Mappability)
-              
+          
         return (TEnamelist,readMappability)
     
     def TE_annotation(self,iv_seq): #iv_seq store reads information
@@ -102,7 +102,7 @@ class TEfeatures :
                         if t not in TEs :
                             TEs.append(t)
                             readMappability=Mappability              
-
+        
         return (TEs,readMappability)
 
     #group by element

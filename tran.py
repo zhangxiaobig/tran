@@ -163,7 +163,7 @@ def ovp_annotation(references,multi_reads,geneIdx,teIdx,stranded,format) :
         except:
             sys.stderr.write("Error occurred during read assignments\n")
             raise
-    
+    #print annot_TE,readMappability
     return (annot_gene,annot_TE,readMappability)
     
 def readInAlignment(filename, format, sortByPos, prj_name):
@@ -299,7 +299,7 @@ def count_transcript_abundance(filename, format, geneIdx, teIdx, stranded, sortB
                             uniq_reads += 1
                         else :
                             nonunique += 1
-                        continue
+                            
         
                
             try :
