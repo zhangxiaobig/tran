@@ -24,14 +24,32 @@ def EMUpdate(meansIn, te_features,multi_reads,estimatedReadLength,readMappabilit
     multi_counts = computeAbundances(te_features,meansIn,multi_reads,estimatedReadLength)    
     sys.stderr.write("total multi counts = "+ str(sum(multi_counts))+"\n")   
     #print len(meansIn),len(multi_reads),len(multi_counts),len(readMappability)
+	#########################################
+    for tid in range(len(annot_TE_position)) :
+        for i in range(len(annot_TE_position[tid])) :
+			tlen = te_features.getLength(tid)
+			#sys.stderr.write("#####################"+str(tid)+"\t"+str(tlen)+"\n" )#################
+			if tlen <0 :
+				sys.stderr.write("Error in optimization: the TE does not exist!\n")
+				raise
+			effectiveLength = tlen - estimatedReadLength + 1
+			#sys.stderr.write("#####################"+str(tid)+"\t"+str(effectiveLength)+"\t"+str(tlen)+"\t"+str(estimatedReadLength)+"\n" )#################
+			if  readMappability[tid]> 0 and  effectiveLength >0 : 
+				meansOut[tid]+=  multi_counts[tid]* annot_TE_position[tid][i] / readMappability[tid] /effectiveLength
+			else :
+			#   sys.stderr.write("effective length is less than read length\n")
+				meansOut[tid] = 0.0
+	#########################################
+    '''
     for tid in range(len(annot_TE_position)) :
         for i in range(len(annot_TE_position[tid])) :
             if readMappability[tid]>0 :
                 meansOut[tid]+=  multi_counts[tid]* annot_TE_position[tid][i] / readMappability[tid]
             else :
                 meansOut[tid] = 0.0
-                          
+    '''                      
     meansOut = normalizeMeans(meansOut)
+    
     sys.stderr.write("after normalization toatl means = "+str(sum(meansOut))+"\n") ##################
    
     return meansOut
@@ -61,10 +79,30 @@ def EMestimate(te_features,multi_reads,multi_counts,numItr,estimatedReadLength,r
     
     sys.stderr.write("multi-reads = %s " % (str(len(multi_reads))))
     means0 = []
+    ############################################
+    for tid in range(len(multi_counts)) :
+        tlen = te_features.getLength(tid)
+        if tlen < 0 :
+            sys.stderr.write("Error in optimization: the TE does not exist!\n")
+            raise
+        effectiveLength = tlen  - estimatedReadLength + 1
+        #if effectiveLength < 0 :
+        #    effectiveLength = 1
+        if effectiveLength > 0 :
+            means0.append(1.0 * readMappability[tid]/effectiveLength)
+        else :
+            #sys.stderr.write("effective length is less that read length mean0.\n")
+            means0.append(0.0)
+    
+    # relative abundance    
+    means0 = normalizeMeans(means0)
+    ###############################################
+    '''
     for tid in range(len(multi_counts)) :
         means0.append(1.0 * readMappability[tid])
 
     means0 = normalizeMeans(means0)
+    '''
     ####################
     sys.stderr.write("after normalization toatl means0 = "+str(sum(means0))+"\n")
     '''
@@ -178,6 +216,22 @@ def computeAbundances(te_features,meansIn,multi_reads,estimatedReadLength): #est
     multi_counts = [0] * size
     
     sys.stderr.write("num of multi reads = "+str(len(multi_reads))+"\n")
+    ############################
+    for kid in range(len(multi_reads)) :
+        TE_transcripts = multi_reads[kid]
+        totalMass = 0.0
+        for tid in TE_transcripts :
+              totalMass += meansIn[tid]
+        
+        if totalMass > 0.0 :
+                  norm = 1.0 / totalMass
+        else :
+                  norm = 0.0
+                  
+        for tid in TE_transcripts :
+              multi_counts[tid] += meansIn[tid] * norm
+    #####################################
+    '''
     for kid in range(len(multi_reads)) : #every read
         TE_transcripts = multi_reads[kid] #a set of TE copy overlap with every read
         totalMass = 0.0
@@ -199,6 +253,6 @@ def computeAbundances(te_features,meansIn,multi_reads,estimatedReadLength): #est
                         
         for tid in TE_transcripts :
               multi_counts[tid] += meansIn[tid] * effectiveLength * norm
-    
+    '''
     sys.stderr.write("total multi counts = "+ str(sum(multi_counts))+"\n")
     return multi_counts
