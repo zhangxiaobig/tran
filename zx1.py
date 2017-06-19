@@ -33,7 +33,7 @@ def parameters():
 						help='Input file format: BAM or SAM. DEFAULT: BAM')
 	parser.add_argument('--stranded', metavar='option', dest='stranded', nargs='?', type=str, default="yes", choices=['yes','no','reverse'],
 						help='Is this a stranded library? (yes, no, or reverse). DEFAULT: yes.')
-	parser.add_argument('-o','--output', metavar='output directory', dest='output_dir', nargs='?', default='ZX_test_out',
+	parser.add_argument('-o','--output', metavar='output directory', dest='output_dir', nargs='?', default='ZX_out',
 						help='Name of output directory. DEFAULT: tran_out')	   
 	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0')
 	
