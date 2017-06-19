@@ -33,7 +33,7 @@ def parameters():
 						help='Input file format: BAM or SAM. DEFAULT: BAM')
 	parser.add_argument('--stranded', metavar='option', dest='stranded', nargs='?', type=str, default="yes", choices=['yes','no','reverse'],
 						help='Is this a stranded library? (yes, no, or reverse). DEFAULT: yes.')
-	parser.add_argument('-o','--output', metavar='output directory', dest='output_dir', nargs='?', default='ZX_test_out',
+	parser.add_argument('-o','--output', metavar='output directory', dest='output_dir', nargs='?', default='ZX_uniq_out',
 						help='Name of output directory. DEFAULT: tran_out')	   
 	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0')
 	
@@ -152,7 +152,7 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 	sys.stderr.write("processing reads done!\n")
 	ISOTIMEFORMAT='%Y-%m-%d %X'
 	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
-	
+	'''
 	te_multi_counts=[0] * len(uniq_counts)	
 	
 	if avgReadLength > 0 :
@@ -164,7 +164,8 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 	te_counts = map(operator.add,uniq_counts,new_te_multi_counts)
 	sys.stderr.write("EM done!\n")
 	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
-	return te_counts
+	'''
+	return uniq_counts
 	
 class TEindex():
 
