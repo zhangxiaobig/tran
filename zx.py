@@ -10,6 +10,7 @@ import argparse
 import collections
 import sys
 import pysam
+import time
 
 from zx_EM import *
 		
@@ -60,8 +61,6 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 	multi_reads = []
 	uniq_counts=[0.0]*TE.numInstances()
 	multi_counts = [0.0]*TE.numInstances()
-	cc = 0
-	annot_TE = []
 	readMappability = []
 	TE_position_list =[]
 	
@@ -149,7 +148,11 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 				multi_read1.append(aligned_read)
 			if aligned_read.is_read2 :
 				multi_read2.append(aligned_read)
-				
+	
+	sys.stderr.write("processing reads done!\n")
+	ISOTIMEFORMAT='%Y-%m-%d %X'
+	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
+	
 	te_multi_counts=[0] * len(uniq_counts)	
 	
 	if avgReadLength > 0 :
@@ -159,7 +162,8 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 		new_te_multi_counts = EM(TE,multi_reads,uniq_counts,te_multi_counts,numItr,avgReadLength,multi_counts,readMappability,TE_position_list)
 										
 	te_counts = map(operator.add,uniq_counts,new_te_multi_counts)
-	
+	sys.stderr.write("EM done!\n")
+	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
 	return te_counts
 	
 class TEindex():
@@ -350,9 +354,7 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 						if t not in TE_list:
 							TE_list.append(t)
 							Mappability=iv[4]
-							
-							
-		
+									
 		if TE_count >0:						
 			for j in TEs :
 				TE_position_ratio[j] +=TE_ratio[j]
@@ -430,8 +432,7 @@ def output_count_tbl(t_tbl,fname):
 			for k in keys:
 				val = 0
 				if k in cnts :
-				   val = cnts[k]
-
+					val = cnts[k]
 				if cnt_tbl.has_key(k) :
 					cnt_tbl[k].append(int(val))
 				else :
@@ -442,19 +443,26 @@ def output_count_tbl(t_tbl,fname):
 		#output
 		f.write(header + "\n")
 		for te in sorted(cnt_tbl.keys()) :
-		   vals = cnt_tbl[te]
-		   vals_str = te
-		   for i in range(len(vals)) :
-			  vals_str +="\t"+str(vals[i])
-		   f.write(vals_str + "\n")
+			vals = cnt_tbl[te]
+			vals_str = te
+			for i in range(len(vals)) :
+				vals_str +="\t"+str(vals[i])
+			f.write(vals_str + "\n")
 
 		f.close()
 
 	return
 				
 def main():
+	ISOTIMEFORMAT='%Y-%m-%d %X'
+	sys.stderr.write("BEGIN\n")
+	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
+	
 	args=parameters()
 	TE=TEindex(args.tefile)
+	
+	sys.stderr.write("TE index building done\n")
+	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
 	
 	for filename in args.files :
 		cnt_tbl = {}
@@ -468,7 +476,6 @@ def main():
 		
 	f_cnt_tbl = args.output_dir + ".cntTable"
 	output_count_tbl(cnt_tbl, f_cnt_tbl)	
-		
 if __name__ == '__main__':
 	try:
 		main()
