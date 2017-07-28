@@ -134,8 +134,8 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 				else :
 					nonunique += 1
 		
-		(TE_list,TE_position_ratio_list,Mappability,TE_position)= reads_ovp_TE(references,alignments_per_read,TE)
-		TE_ovp_reads(TE_list,TE_position_ratio_list,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list)
+		(TE_position_ratio,Mappability,TE_position)= reads_ovp_TE(references,alignments_per_read,TE)
+		TE_ovp_reads(TE_position_ratio,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list)
 		
 		alignments_per_read = []
 		multi_read1 = []
@@ -298,9 +298,7 @@ class TEindex():
 def reads_ovp_TE(references,alignments_per_read,TE):
 	TE_position = 0
 	Mappability=0
-	TE_position_ratio=[0.0] * TE.numInstances()
-	TE_list=[]
-	TE_position_ratio_list=[]
+	TE_position_ratio={}
 	#loop over every alignment
 	for r1,r2 in alignments_per_read :
 		itv_list = []
@@ -326,9 +324,8 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 			itv_list2 = fetch_exon(chrom2,r2.pos,r2.cigar,direction,format,r2.get_tag("NH"))############################
 			itv_list.extend(itv_list2)
 		
-		TEs = []
 		TEnamelist = []
-		TE_ratio=[0.0]*TE.numInstances()		
+		TE_ratio={}		
 		for iv in itv_list :		
 			for keys in TE.getWindow()[iv[0]].keys() :
 				[(s,e)] = TE.getWindow()[iv[0]][keys]						  
@@ -349,25 +346,21 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 					if iv[3] == TE.getStrand(t) :
 						TE_count=1
 						TE_ratio[t]=1/float(iv[4])
-						if t not in TEs:
-							TEs.append(t)
-						if t not in TE_list:
-							TE_list.append(t)
-							Mappability=iv[4]
-									
-		if TE_count >0:						
-			for j in TEs :
-				TE_position_ratio[j] +=TE_ratio[j]
+						Mappability=iv[4]									
 						
 		TE_position +=TE_count	
 	
-	if Mappability > 0 :
-		for k in TE_list:
-			TE_position_ratio_list.append(TE_position_ratio[k])
-		
+	if len(TE_ratio.keys())> 0 :
+		for k in TE_ratio:
+			if k not in TE_position_ratio:
+				TE_position_ratio[k]=0.0			
+				TE_position_ratio[k] +=TE_ratio[k]
+			else :
+				TE_position_ratio[k] +=TE_ratio[k]
+
 		#print r1.qname,TE_list,TE_position_ratio_list,TE_position,Mappability
 					
-	return (TE_list,TE_position_ratio_list,Mappability,TE_position)
+	return (TE_position_ratio,Mappability,TE_position)
 
 
 def fetch_exon(chrom, st, cigar,direction,format,readMappability):
@@ -398,17 +391,16 @@ def fetch_exon(chrom, st, cigar,direction,format,readMappability):
 			
 	return exon_bound
 	
-def TE_ovp_reads(TE_list,TE_position_ratio_list,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list):	
+def TE_ovp_reads(TE_position_ratio,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list):	
 	if	Mappability == 1 :
-		for i in TE_list:
+		for i in TE_position_ratio.keys():
 			uniq_counts[i] += 1
 
 	if	Mappability > 1 :
 		multi_algn=[]
-		for i in range(len(TE_list)):
-			for te in TE_list:
-				multi_counts[te] +=TE_position_ratio_list[i]
-				multi_algn.append(te)
+		for te in TE_position_ratio:
+			multi_counts[int(te)] +=TE_position_ratio[te]
+			multi_algn.append(te)
 		multi_reads.append(multi_algn)
 		readMappability.append(Mappability)
 		TE_position_list.append(TE_position)
