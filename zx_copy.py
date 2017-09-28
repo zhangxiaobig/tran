@@ -154,6 +154,7 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
 	
 	te_multi_counts=[0] * len(uniq_counts)	
+	new_te_multi_counts=[0] * len(uniq_counts)	
 	
 	if avgReadLength > 0 :
 		avgReadLength = int(avgReadLength/tmp_cnt)
@@ -322,11 +323,11 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 	for r1,r2 in alignments_per_read :
 		itv_list = []
 		TE_count=0
-		direction = 1
+		direction = "+"
 		if r1 is not None and r1.is_reverse :
-			direction = -1
+			direction = "-"
 		if r2 is not None and not r2.is_reverse :
-			direction = -1
+			direction = "-"
 		chrom1 = ""
 		if r1 is not None :
 			chrom1 = references[r1.tid]
@@ -336,16 +337,18 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 
 		#fetch all mapping intervals
 		itv_list = []
+		
 		if r1 is not None :
-			itv_list = fetch_exon(chrom1,r1.pos,r1.cigartuples,direction,format,r1.get_tag("NH"))###########################atention
+			itv_list.append([chrom1,r1.reference_start,r1.reference_end,direction,r1.get_tag("NH")])###########################atention
    
 		if chrom2 != "" : #paired-end, both mates are mapped
-			itv_list2 = fetch_exon(chrom2,r2.pos,r2.cigar,direction,format,r2.get_tag("NH"))############################
+			itv_list2.append([chrom2,r2.reference_start,r2.reference_end,direction,r2.get_tag("NH")])############################
 			itv_list.extend(itv_list2)
 		
 		TEnamelist = []
 		TE_ratio={}		
-		for iv in itv_list :		
+		for iv in itv_list :	
+			#print iv[1],iv[2]
 			for keys in TE.getWindow()[iv[0]].keys() :
 				[(s,e)] = TE.getWindow()[iv[0]][keys]						  
 				if iv[1] <= e and iv[2] >= s :
@@ -354,7 +357,8 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 							[(s,e)] = TE.getNames()[iv[0]][keys+i]
 							if iv[1] <= e and iv[2] >= s :
 								TEnamelist.append(keys+i)								
-								break	
+							elif s > iv[2]:
+								break
 					except KeyError :
 						pass
 					
@@ -362,10 +366,10 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 					
 			if len(TEnamelist)>0:				
 				for t in TEnamelist :
-					if iv[3] == TE.getStrand(t) :
-						TE_count=1
-						TE_ratio[t]=1/float(iv[4])
-						Mappability=iv[4]									
+					#if iv[3] == TE.getStrand(t) :
+					TE_count=1
+					TE_ratio[t]=1/float(iv[4])
+					Mappability=iv[4]									
 						
 		TE_position +=TE_count	
 	
@@ -377,38 +381,9 @@ def reads_ovp_TE(references,alignments_per_read,TE):
 			else :
 				TE_position_ratio[k] +=TE_ratio[k]
 
-		#print r1.qname,TE_list,TE_position_ratio_list,TE_position,Mappability
-					
+		#print r1.qname,TE_list,TE_position_ratio_list,TE_position,Mappability			
 	return (TE_position_ratio,Mappability,TE_position)
 
-
-def fetch_exon(chrom, st, cigar,direction,format,readMappability):
-	
-	chrom_st = st
-	if format == "BAM" :
-		chrom_st += 1
-	exon_bound =[]
-
-	for c,s in cigar:	 #code and size
-		if c==0:			#match			
-			chrom_st += s
-		elif c==1:		  #insertion to ref
-			continue
-		elif c==2:		  #deletion to ref
-			chrom_st += s
-		elif c==3:		  #gap or intron
-			chrom_st += s
-		elif c==4:		  #soft clipping. We do NOT include soft clip as part of exon
-			chrom_st += s
-		else:
-			continue
-	
-	if direction == 1 :
-		exon_bound.append([chrom, chrom_st,chrom_st + s-1,"+",readMappability])
-	if direction == -1 :
-		exon_bound.append([chrom, chrom_st,chrom_st + s-1,"-",readMappability])
-			
-	return exon_bound
 	
 def TE_ovp_reads(TE_position_ratio,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list):	
 	if	Mappability == 1 :
