@@ -5,7 +5,6 @@ import sys
 import array
 import operator
 
-from constants import *
 
 def normalizeMeans(meansIn):
 	total = sum(meansIn)
