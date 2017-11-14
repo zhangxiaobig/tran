@@ -33,7 +33,7 @@ def parameters():
 						help='Input file format: BAM or SAM. DEFAULT: BAM')
 	parser.add_argument('--stranded', metavar='option', dest='stranded', nargs='?', type=str, default="yes", choices=['yes','no','reverse'],
 						help='Is this a stranded library? (yes, no, or reverse). DEFAULT: yes.')
-	parser.add_argument('-o','--output', metavar='output directory', dest='output_dir', nargs='?', default='ZX_out',
+	parser.add_argument('-o','--output', metavar='output directory', dest='output_dir', nargs='?', default='ZX_copy_out_uniq',
 						help='Name of output directory. DEFAULT: tran_out')	   
 	parser.add_argument('--version', action='version', version='%(prog)s 1.0.0')
 	
@@ -158,10 +158,10 @@ def calulate_abundance(samfile,TE,maxL=500,numItr=10):
 	if avgReadLength > 0 :
 		avgReadLength = int(avgReadLength/tmp_cnt)
 		
-	if len (multi_reads) > 0 :
-		new_te_multi_counts = EM(TE,multi_reads,uniq_counts,te_multi_counts,numItr,avgReadLength,multi_counts,readMappability,TE_position_list)
+	#if len (multi_reads) > 0 :
+		#new_te_multi_counts = EM(TE,multi_reads,uniq_counts,te_multi_counts,numItr,avgReadLength,multi_counts,readMappability,TE_position_list)
 										
-	te_counts = map(operator.add,uniq_counts,new_te_multi_counts)
+	te_counts = uniq_counts
 	sys.stderr.write("EM done!\n")
 	print time.strftime(ISOTIMEFORMAT,time.localtime(time.time()))
 	return te_counts
@@ -173,6 +173,7 @@ class TEindex():
 		self.__window = collections.defaultdict(dict)
 		self._length = []
 		self._nameIDmap = []
+		self._copynameIDmap = []
 		self._elements = []
 		self._start = []
 		self._end= []
@@ -219,11 +220,14 @@ class TEindex():
 
 			full_name = name+':'+ele_id+':'+family_id+':'+class_id+':'+strand
 			ele_name = ele_id+':'+family_id+':'+class_id
+			full_copy_name = name+':'+ele_id+':'+family_id+':'+class_id+':'+str(start)+'-'+str(end)
+			
 			if ele_name not in self._elements :
 					self._elements.append(ele_name)
 												   
 			self._length.append(tlen)
-			self._nameIDmap.append(full_name)	
+			self._nameIDmap.append(full_name)
+			self._copynameIDmap.append(full_copy_name)
 				
 			self.__namelist[chrom][name_idx] = [(start,end)]		  
 				
@@ -242,13 +246,16 @@ class TEindex():
 			name_idx += 1			   
 				
 		f.close()
-
+		
 	def getNames(self) :
-		return self.__namelist
+		return self.__namelist	
 		
 	def getElements(self) :
-		 return self._elements
+		return self._elements
 		 
+	def getFullCopyName(self) :
+		return self._copynameIDmap
+		
 	def getStrand(self,idx) :
 		f_name = self._nameIDmap[idx]
 		return f_name[len(f_name)-1]
@@ -271,6 +278,7 @@ class TEindex():
 			return val
 		else :
 			return None
+			
 
 	def getFullName(self,idx) :
 		if idx >= len(self._nameIDmap) or idx < 0 :
@@ -283,6 +291,7 @@ class TEindex():
 			return self._length[idx]
 		else :
 			return -1
+			
 	def groupByEle(self,te_inst_counts) :
 		TEs = self.getElements()
 		te_ele_counts = dict(zip(TEs,[0]*len(TEs)))
@@ -293,7 +302,17 @@ class TEindex():
 				te_ele_counts[ele_name] += te_inst_counts[i]
 
 		return te_ele_counts
-														
+		
+	def groupByCopy(self,te_inst_counts) :
+		names= self.getFullCopyName()
+		te_copy_counts = dict(zip(names,[0]*len(names)))
+
+		for i in range(len(te_inst_counts)) :
+			copy_name = self._copynameIDmap[i]
+			te_copy_counts[copy_name] = te_inst_counts[i]
+			#print te_copy_counts
+		return te_copy_counts
+												
 			
 def reads_ovp_TE(references,alignments_per_read,TE):
 	TE_position = 0
@@ -434,9 +453,9 @@ def output_count_tbl(t_tbl,fname):
 
 		#output
 		f.write(header + "\n")
-		for te in sorted(cnt_tbl.keys()) :
+		for te in sorted(cnt_tbl.keys()):
 			vals = cnt_tbl[te]
-			vals_str = te
+			vals_str =te
 			for i in range(len(vals)) :
 				vals_str +="\t"+str(vals[i])
 			f.write(vals_str + "\n")
@@ -463,8 +482,9 @@ def main():
 		else :
 			samfile = pysam.AlignmentFile(filename,'r')
 		te_instance_counts=calulate_abundance(samfile,TE)
-		te_ele_counts = TE.groupByEle(te_instance_counts)
-		cnt_tbl[filename]=dict(te_ele_counts.items())		
+		te_lev_counts = TE.groupByCopy(te_instance_counts)
+		#print te_lev_counts
+		cnt_tbl[filename]=dict(te_lev_counts.items())		
 		
 	f_cnt_tbl = args.output_dir + ".cntTable"
 	output_count_tbl(cnt_tbl, f_cnt_tbl)	
