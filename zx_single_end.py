@@ -60,6 +60,9 @@ def calulate_abundance(samfile,TE,reads_type,maxL=500,numItr=50):
 	multi_counts = [0.0]*TE.numInstances()
 	readMappability = []
 	TE_position_list =[]
+	TE_position_ratio_list=[]
+	Mappability_list=[]
+	uniq_counts_com={}
 	
 	for aligned_read in samfile.fetch():
 		
@@ -95,28 +98,51 @@ def calulate_abundance(samfile,TE,reads_type,maxL=500,numItr=50):
 				#print alignments_per_read			
 				#print aligned_read.query_name
 				(TE_position_ratio,Mappability,TE_position)= reads_ovp_TE(references,alignments_per_read,TE,aligned_read.query_length)
-				TE_ovp_reads(TE_position_ratio,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list)	
-		
+				
+				if	Mappability == 1 :
+					for i in TE_position_ratio:
+						if type(i)==int:
+							uniq_counts[i] += 1
+						else:
+							if i not in uniq_counts_com:
+								uniq_counts_com[i]=1
+							else:
+								uniq_counts_com[i]+=1
+								
+				TE_position_ratio_list.append(TE_position_ratio)
+				Mappability_list.append(Mappability)
+
 		
 		prev_read_name = cur_read_name
 		alignments_per_read = []
 		alignments_per_read.append((aligned_read,None))
-			
+	
+	#for c in uniq_counts_com:
+		#print c,uniq_counts_com[c]
 		
-	te_multi_counts=[0] * len(uniq_counts)	
-	new_te_multi_counts=[0] * len(uniq_counts)	
+	TE_combine_trackback=TE_ovp_reads(TE,TE_position_ratio_list,Mappability_list,uniq_counts,uniq_counts_com,multi_counts,multi_reads,readMappability)	
+	
+	te_counts=[0] * len(uniq_counts)	
+	te_multi_counts=[0] * len(uniq_counts)
 	
 	if avgReadLength > 0 :
 		avgReadLength = int(avgReadLength/tmp_cnt)
 		
 	if len (multi_reads) > 0 :
-		#for i in range(len(uniq_counts)):
-			#print i,uniq_counts[i]
-		multi_reads_within_uniq_reads(TE,multi_reads,uniq_counts,new_te_multi_counts)
-		#new_te_multi_counts = EM(TE,multi_reads,uniq_counts,te_multi_counts,numItr,avgReadLength,multi_counts,readMappability,TE_position_list)
+		multi_reads_within_uniq_reads(TE,multi_reads,uniq_counts,te_multi_counts,TE_combine_trackback,uniq_counts_com)
+		#te_multi_counts = EM(TE,multi_reads,numItr,avgReadLength,multi_counts,readMappability,TE_position_list)
+		#print uniq_counts
+		#for i in range(len(te_multi_counts)):
+		#	if i <TE.numInstances():
+		#		te_counts[i]=uniq_counts[i]+te_multi_counts[i]
+		#	else:
+		#		for t in TE_combine_trackback[i]:
+		#			if TE_combine_trackback[i] in uniq_counts_com:
+		#				te_counts[t]=uniq_counts[t]+te_multi_counts[i]+uniq_counts_com[TE_combine_trackback[i]]
+		#			else:
+		#				te_counts[t]=uniq_counts[t]+te_multi_counts[i]
 		
-	#te_counts=uniq_counts								
-	te_counts = map(operator.add,uniq_counts,new_te_multi_counts)
+	te_counts = map(operator.add,uniq_counts,te_multi_counts)
 	return te_counts		
 
 class TEindex():
@@ -258,7 +284,28 @@ class TEindex():
 			te_copy_counts[copy_name] = te_inst_counts[i]
 			#print te_copy_counts
 		return te_copy_counts
-												
+
+def multi_reads_within_uniq_reads(TE,multi_reads,uniq_counts,te_multi_counts,TE_combine_trackback,uniq_counts_com):
+	for i in multi_reads:
+		te_num=[]
+		for te in i:
+			if te <TE.numInstances():
+				if uniq_counts[te]!=0:
+					te_num.append(te)
+					
+			else:
+				tee = TE_combine_trackback[te]
+				if tee in uniq_counts_com:
+					te_num.append(te)
+				
+				
+		if len(te_num)==1:
+			if te_num[0]<TE.numInstances():
+				te_multi_counts[int(te_num[0])]+=1	
+			else:
+				for t in TE_combine_trackback[te_num[0]]:
+					te_multi_counts[int(t)]+=1	
+	
 			
 def reads_ovp_TE(references,alignments_per_read,TE,length):
 	TE_position = 0
@@ -338,13 +385,20 @@ def reads_ovp_TE(references,alignments_per_read,TE,length):
 					Mappability=iv[4]	
 					TE_ratio=1/float(Mappability)
 					s=TE.getID(iv[0],t)
-					if s not in TE_position_ratio:
-						TE_position_ratio[s]=0.0			
-						TE_position_ratio[s] +=TE_ratio
+					if s not in TE_position_ratio:		
+						TE_position_ratio[s] =TE_ratio
 					else :
 						TE_position_ratio[s] +=TE_ratio
-
-			#print TEnamelist
+						
+				if len(TEnamelist)>1:
+					ss=[]
+					for t in TEnamelist :
+						s=TE.getID(iv[0],t)
+						ss.append(s)
+						
+					ss=tuple(ss)	
+					TE_position_ratio[ss] =TE_ratio
+			
 			TEnamelist = []										
 			TE_ratio = 0
 			
@@ -354,32 +408,52 @@ def reads_ovp_TE(references,alignments_per_read,TE,length):
 	return (TE_position_ratio,Mappability,TE_position)
 
 	
-def TE_ovp_reads(TE_position_ratio,Mappability,TE_position,uniq_counts,multi_counts,multi_reads,readMappability,TE_position_list):
-	#print TE_position_ratio
-	if	Mappability == 1 :
-		#print TE_position_ratio
-		for i in TE_position_ratio:
-			uniq_counts[i] += 1
-
-	if	Mappability > 1 :
-		multi_algn=[]
-		for te in TE_position_ratio:
-			multi_counts[int(te)] +=TE_position_ratio[te]
-			multi_algn.append(te)
-		multi_reads.append(multi_algn)
-		readMappability.append(Mappability)
-		TE_position_list.append(TE_position)	
-
-def multi_reads_within_uniq_reads(TE,multi_reads,uniq_counts,new_te_multi_counts):
-	for i in multi_reads:
-		te_num=[]
-		for te in i:
-			if uniq_counts[te]!=0:
-				te_num.append(te)
+def TE_ovp_reads(TE,TE_position_ratio_list,Mappability_list,uniq_counts,uniq_counts_com,multi_counts,multi_reads,readMappability):
+	TE_combine={}
+	TE_combine_trackback={}
+	num=int(TE.numInstances()-1)
+	for i in range(len(Mappability_list)):
+		if	Mappability_list[i] > 1 :
+			multi_algn=[]
+			mark=0
+			for te in TE_position_ratio_list[i]:				
+				if type(te)==int:					
+					if uniq_counts[te]!=0:
+						multi_counts[int(te)] +=1
+						mark=1
+						multi_algn.append(te)
+						
+				else :
+					if te not in TE_combine:
+						num +=1
+						TE_combine[te]=num
+						TE_combine_trackback[num]=te
+						multi_counts.append([0.0])
+						multi_counts[TE_combine[te]] =0.0
+						if te in uniq_counts_com:						
+							multi_counts[TE_combine[te]] +=1
+							mark=1
+							tee=TE_combine[te]
+							te=tee
+							multi_algn.append(te)	
+					
 				
-		if len(te_num)==1:
-			new_te_multi_counts[int(te_num[0])]+=1	
-		#print i,"\t",te_num,"\t",te_exp,"\t",len(te_num)
+			
+			if mark==0:
+				for te in TE_position_ratio_list[i]:
+					if type(te)==int:
+						multi_counts[int(te)] +=TE_position_ratio_list[i][te]
+					else:
+						multi_counts[TE_combine[te]] +=TE_position_ratio_list[i][te]						
+						tee=TE_combine[te]
+						te=tee
+						
+					multi_algn.append(te)
+			#print multi_algn		
+			multi_reads.append(multi_algn)
+			readMappability.append(Mappability_list[i])	
+			#print multi_algn
+	return TE_combine_trackback
 			
 def output_count_tbl(t_tbl,fname):
 	try:
